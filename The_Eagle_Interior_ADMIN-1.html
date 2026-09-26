@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Eagle Interior - Admin</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f4f4;color:#222}
+header{background:#111;color:#fff;text-align:center;padding:24px 15px}
+header h1{margin:0;font-size:29px} header p{margin:7px 0 0}
+.wrap{max-width:900px;margin:auto;padding:18px}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 3px 12px rgba(0,0,0,.08)}
+input,textarea,select{width:100%;padding:12px;margin:6px 0 12px;border:1px solid #ccc;border-radius:8px;font-size:15px}
+button{border:0;border-radius:8px;padding:12px;font-size:15px;cursor:pointer}
+.primary{width:100%;background:#111;color:#fff}
+.secondary{background:#ddd;color:#111}
+.danger{background:#b00020;color:#fff}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.product,.order{background:#fafafa;border:1px solid #ddd;border-radius:12px;padding:12px;margin:10px 0}
+.product img{width:100%;height:190px;object-fit:cover;border-radius:9px;background:#eee}
+.price{font-size:20px;font-weight:bold;margin:8px 0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:14px;z-index:20}
+.modalBox{background:#fff;width:100%;max-width:480px;max-height:92vh;overflow:auto;padding:18px;border-radius:14px}
+.hidden{display:none!important}
+.empty{text-align:center;padding:30px}
+.badge{display:inline-block;padding:4px 8px;border-radius:20px;background:#111;color:#fff;font-size:12px}
+footer{text-align:center;background:#111;color:#fff;padding:22px;margin-top:25px}
+</style>
+</head>
+<body>
+
+<header>
+<h1>The Eagle Interior</h1>
+<p>Admin Panel</p>
+</header>
+
+<div id="loginScreen" class="wrap">
+<div class="card">
+<h2>🔐 Admin Login</h2>
+<p>Temporary demo login — real backend security will be added later.</p>
+<label>Username</label>
+<input id="loginUser" autocomplete="username" placeholder="Username">
+<label>Password</label>
+<input id="loginPass" type="password" autocomplete="current-password" placeholder="Password">
+<button class="primary" onclick="login()">Login</button>
+<p id="loginMsg"></p>
+</div>
+</div>
+
+<div id="adminScreen" class="hidden">
+<div class="wrap">
+<div class="card">
+<div class="row">
+<button class="primary" onclick="openAdd()">➕ Add Mirror</button>
+<button class="secondary" onclick="showOrders()">📦 Orders</button>
+<button class="secondary" onclick="logout()">Logout</button>
+</div>
+</div>
+
+<div class="card">
+<h2>🪞 Mirrors</h2>
+<div id="products"></div>
+</div>
+
+<div class="card">
+<h2>📦 Orders</h2>
+<div id="orders"></div>
+</div>
+</div>
+</div>
+
+<div id="addModal" class="modal">
+<div class="modalBox">
+<h2>➕ Add New Mirror</h2>
+<label>Mirror Name</label>
+<input id="mName" placeholder="Mirror Name">
+<label>Price</label>
+<input id="mPrice" type="number" min="0" placeholder="Price">
+<label>Size</label>
+<input id="mSize" placeholder="24 x 36 inch">
+<label>Description</label>
+<textarea id="mDescription" rows="4" placeholder="Description"></textarea>
+<label>Keywords</label>
+<input id="mKeywords" placeholder="round, wall mirror, bedroom">
+<label>Photo</label>
+<input id="mPhoto" type="file" accept="image/*">
+<button class="primary" onclick="saveMirror()">Save Mirror</button>
+<button class="secondary" style="width:100%;margin-top:8px" onclick="closeAdd()">Cancel</button>
+</div>
+</div>
+
+<footer>The Eagle Interior — Admin</footer>
+
+<script>
+var ADMIN_USER = "admin";
+var ADMIN_PASS = "Eagle@123";
+
+var products = loadArray("eagleProducts");
+var orders = loadArray("eagleOrders");
+
+function loadArray(key){
+  try{
+    var x=JSON.parse(localStorage.getItem(key)||"[]");
+    return Array.isArray(x)?x:[];
+  }catch(e){return [];}
+}
+function saveArray(key,value){
+  try{
+    localStorage.setItem(key,JSON.stringify(value));
+    return true;
+  }catch(e){
+    alert("Storage full. Try a smaller photo.");
+    return false;
+  }
+}
+function esc(v){
+  return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
+function money(v){return Number(v||0).toLocaleString();}
+
+function login(){
+  var u=document.getElementById("loginUser").value.trim();
+  var p=document.getElementById("loginPass").value;
+  if(u===ADMIN_USER && p===ADMIN_PASS){
+    sessionStorage.setItem("eagleAdminLoggedIn","yes");
+    showAdmin();
+  }else{
+    document.getElementById("loginMsg").textContent="Username ya password ghalat hai.";
+  }
+}
+function showAdmin(){
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("adminScreen").classList.remove("hidden");
+  renderProducts();
+  renderOrders();
+}
+function logout(){
+  sessionStorage.removeItem("eagleAdminLoggedIn");
+  document.getElementById("adminScreen").classList.add("hidden");
+  document.getElementById("loginScreen").classList.remove("hidden");
+}
+function openAdd(){document.getElementById("addModal").style.display="flex";}
+function closeAdd(){document.getElementById("addModal").style.display="none";}
+
+function saveMirror(){
+  var name=document.getElementById("mName").value.trim();
+  var price=document.getElementById("mPrice").value.trim();
+  var size=document.getElementById("mSize").value.trim();
+  var description=document.getElementById("mDescription").value.trim();
+  var keywords=document.getElementById("mKeywords").value.trim();
+  var file=document.getElementById("mPhoto").files[0];
+
+  if(!name||!price||!file){alert("Name, Price aur Photo zaroor dein.");return;}
+
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var product={
+      id:String(Date.now()),
+      name:name,price:price,size:size,
+      description:description,keywords:keywords,
+      image:e.target.result
+    };
+    products.push(product);
+    if(!saveArray("eagleProducts",products)){products.pop();return;}
+    document.getElementById("mName").value="";
+    document.getElementById("mPrice").value="";
+    document.getElementById("mSize").value="";
+    document.getElementById("mDescription").value="";
+    document.getElementById("mKeywords").value="";
+    document.getElementById("mPhoto").value="";
+    closeAdd();
+    renderProducts();
+    alert("Mirror successfully add ho gaya.");
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderProducts(){
+  var area=document.getElementById("products");
+  area.innerHTML="";
+  if(!products.length){
+    area.innerHTML="<div class='empty'>Abhi koi mirror add nahi hua.</div>";
+    return;
+  }
+  products.forEach(function(p,i){
+    var d=document.createElement("div");
+    d.className="product";
+    d.innerHTML="<img src='"+esc(p.image)+"'><h3>"+esc(p.name)+"</h3><p>"+esc(p.description)+"</p><p><b>Size:</b> "+esc(p.size)+"</p><div class='price'>Rs. "+money(p.price)+"</div><button class='danger' style='width:100%'>Delete Mirror</button>";
+    d.querySelector("button").onclick=function(){
+      if(confirm("Is mirror ko delete karna hai?")){
+        products.splice(i,1); saveArray("eagleProducts",products); renderProducts();
+      }
+    };
+    area.appendChild(d);
+  });
+}
+
+function showOrders(){
+  document.getElementById("orders").scrollIntoView({behavior:"smooth"});
+  renderOrders();
+}
+function renderOrders(){
+  var area=document.getElementById("orders");
+  area.innerHTML="";
+  orders=loadArray("eagleOrders");
+  if(!orders.length){
+    area.innerHTML="<div class='empty'>Abhi koi order nahi hai.</div>";
+    return;
+  }
+  orders.slice().reverse().forEach(function(o){
+    var items="";
+    (o.items||[]).forEach(function(p){items+="🪞 "+esc(p.name)+" — Rs. "+money(p.price)+"<br>";});
+    var d=document.createElement("div");
+    d.className="order";
+    d.innerHTML="<span class='badge'>"+esc(o.orderId)+"</span>"+
+      "<p><b>Customer:</b> "+esc(o.customerName)+"</p>"+
+      "<p><b>Phone:</b> "+esc(o.phone)+"</p>"+
+      "<p><b>Building:</b> "+esc(o.building)+"</p>"+
+      "<p><b>House/Flat:</b> "+esc(o.house)+"</p>"+
+      "<p><b>Area:</b> "+esc(o.area)+"</p>"+
+      "<p><b>City:</b> "+esc(o.city)+"</p>"+
+      "<p><b>Address:</b> "+esc(o.address)+"</p>"+
+      "<p><b>Notes:</b> "+esc(o.notes||"None")+"</p>"+
+      "<p><b>Payment:</b> "+esc(o.payment)+"</p>"+
+      "<p><b>Items:</b><br>"+items+"</p>"+
+      "<p><b>Total:</b> Rs. "+money(o.total)+"</p>"+
+      "<p><b>Date:</b> "+esc(o.date)+"</p>";
+    area.appendChild(d);
+  });
+}
+
+if(sessionStorage.getItem("eagleAdminLoggedIn")==="yes"){showAdmin();}
+</script>
+</body>
+</html>
